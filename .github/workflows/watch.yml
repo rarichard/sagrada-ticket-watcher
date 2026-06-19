@@ -1,0 +1,46 @@
+name: Sagrada Família ticket watcher
+
+# Checks the official ticket store for July 7, 2026 availability every 5 minutes
+# and fires a Pushover alert when a slot opens. Notify-only — never books.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # every 5 minutes (UTC); GitHub may add a few min of delay under load
+  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+
+# Needed so the job can commit the dedupe state file back to the repo.
+permissions:
+  contents: write
+
+concurrency:
+  group: watcher
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check availability and alert
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          TARGET_DATE: '2026-07-07'
+        run: node monitor.js
+
+      - name: Persist alert state (only if it changed)
+        run: |
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "Update alert state [skip ci]"
+            git push
+          else
+            echo "No state change."
+          fi
