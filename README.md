@@ -26,6 +26,15 @@ A slot is considered open when the API returns `availability` (vs `no-availabili
 for the target date. `state.json` dedupes so you're alerted once per opening (re-alerts
 if a date sells out and reopens).
 
+Each ticket type's calendar is driven by a specific `venueId` (e.g. Guided Tour = 1640,
+Guide+Towers = 1783), which the monitor resolves per product at runtime — using the
+wrong one silently returns an empty calendar.
+
+The API signal was validated against the live website calendar day-for-day (e.g. July
+2026 Guided Tour: site shows 12, 15, 16, 19–31 bookable and the rest blocked — an exact
+match to the API). Run `node validate.js` to print real availability across June–Aug 2026
+for all four ticket types as a sanity check.
+
 ## Running
 
 The watcher runs automatically in **GitHub Actions every 5 minutes** (see

@@ -21,7 +21,6 @@ const BASE = 'https://services.clorian.com';
 const SECRET = 'thesagradafamiliafrontendoftomorrow'; // public key baked into the official frontend
 const POS = '649';
 const SALES_GROUP = 1;
-const VENUE = 1;
 const STORE = 'https://tickets.sagradafamilia.org/en';
 
 // The four individual ticket types sold on the official store.
@@ -71,15 +70,33 @@ function headers(tok) {
   };
 }
 
+// Each product's calendar is driven by a specific venue. The right venueId is
+// NOT always 1 — e.g. Guided Tour uses 1640, Guide+Towers uses 1783. Using the
+// wrong venueId silently returns an empty calendar, so we resolve it dynamically
+// from the product view (the venue with the lowest viewDisplayOrder drives dates).
+async function resolveVenueId(tok, productId) {
+  const url = `${BASE}/catalog/salesGroups/${SALES_GROUP}/product/${productId}/views/loyalty`;
+  const r = await fetch(url, { headers: headers(tok) });
+  if (!r.ok) throw new Error(`view ${productId} failed: ${r.status}`);
+  const j = await r.json();
+  const set = (j.productVenueSet || []).slice().sort(
+    (a, b) => (a.viewDisplayOrder ?? 99) - (b.viewDisplayOrder ?? 99)
+  );
+  const venueId = set[0]?.venueId;
+  if (venueId == null) throw new Error(`no venue found for product ${productId}`);
+  return venueId;
+}
+
 // Returns the availability status string for TARGET_DATE for one product,
 // e.g. "availability" | "no-availability" | "unknown" (date not in the month map).
 async function checkProduct(tok, product, date) {
   const [year, month] = date.split('-').map(Number); // month is 1-based, which the API wants
+  const venueId = await resolveVenueId(tok, product.id);
   const qs = new URLSearchParams({
     minTickets: '1',
     month: String(month),
     year: String(year),
-    venueId: String(VENUE),
+    venueId: String(venueId),
   });
   const url = `${BASE}/catalog/salesGroups/${SALES_GROUP}/product/${product.id}/availability?${qs}`;
   const r = await fetch(url, { headers: headers(tok) });
