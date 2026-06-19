@@ -115,7 +115,11 @@ function loadState() {
 
 function saveState(state) {
   try {
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+    const next = JSON.stringify(state, null, 2) + '\n';
+    let current = null;
+    try { current = fs.readFileSync(STATE_FILE, 'utf8'); } catch {}
+    if (next === current) return; // no change — avoid needless writes/commits
+    fs.writeFileSync(STATE_FILE, next);
   } catch (e) {
     log('WARN could not write state file:', e.message);
   }
