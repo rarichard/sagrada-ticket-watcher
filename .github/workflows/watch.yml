@@ -6,7 +6,14 @@ name: Sagrada Família ticket watcher
 on:
   schedule:
     - cron: '*/5 * * * *' # every 5 minutes (UTC); GitHub may add a few min of delay under load
-  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+  workflow_dispatch: # allow manual "Run workflow" from the Actions tab
+    inputs:
+      target_date:
+        description: 'Date to check (YYYY-MM-DD). Blank = the real target (2026-07-07).'
+        required: false
+      state_file:
+        description: 'State file path. Use a temp path (e.g. /tmp/test.json) for test runs so the real state/commits are untouched.'
+        required: false
 
 # Needed so the job can commit the dedupe state file back to the repo.
 permissions:
@@ -30,7 +37,8 @@ jobs:
         env:
           PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
           PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
-          TARGET_DATE: '2026-07-07'
+          TARGET_DATE: ${{ github.event.inputs.target_date || '2026-07-07' }}
+          STATE_FILE: ${{ github.event.inputs.state_file || '' }}
         run: node monitor.js
 
       - name: Persist alert state (only if it changed)
